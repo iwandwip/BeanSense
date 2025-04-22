@@ -1,0 +1,5 @@
+<launch>
+    <!-- <node pkg="kopi" type="main.py" name="kopi_node" output="screen"/> -->
+    <node pkg="kopi" type="poweroff.py" name="kopi_node" output="screen"/>
+</launch>
+
