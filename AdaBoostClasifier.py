@@ -216,6 +216,10 @@ class AdaBoostResNetModel:
             'random_state': self.random_state
         }
 
+        directory = os.path.dirname(filepath)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory)
+
         with open(filepath, 'wb') as f:
             pickle.dump(model_data, f)
 
@@ -277,14 +281,14 @@ def main():
                 dataset_choice = dataset_answer['dataset']
 
                 if dataset_choice == "4":
-                    csv_file = "dataset4.csv"
+                    csv_file = "datasets/dataset4.csv"
                 elif dataset_choice == "6":
-                    csv_file = "dataset6.csv"
+                    csv_file = "datasets/dataset6.csv"
                 elif dataset_choice == "8":
-                    csv_file = "dataset8.csv"
+                    csv_file = "datasets/dataset8.csv"
                 else:
                     print(f"Invalid choice: {dataset_choice}, using dataset8.csv")
-                    csv_file = "dataset8.csv"
+                    csv_file = "datasets/dataset8.csv"
                     dataset_choice = "8"
 
                 print(f"Using dataset: {csv_file}")
@@ -296,7 +300,7 @@ def main():
                     print("Data loaded successfully, starting training...")
                     model.train(X, y, use_kfold=True)
 
-                    model_file = f"adaboost_resnet_model_{dataset_choice}.pkl"
+                    model_file = f"model/adaboost_resnet_model_{dataset_choice}.pkl"
                     model.save_model(model_file)
 
                     print("Testing prediction:")
@@ -319,7 +323,7 @@ def main():
                 ]
                 model_answer = inquirer.prompt(model_questions)
                 dataset_choice = model_answer['model']
-                model_file = f"adaboost_resnet_model_{dataset_choice}.pkl"
+                model_file = f"model/adaboost_resnet_model_{dataset_choice}.pkl"
 
                 try:
                     model.load_model(model_file)
