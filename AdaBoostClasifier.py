@@ -244,116 +244,125 @@ def main():
     try:
         model = AdaBoostResNetModel(n_estimators=100, learning_rate=0.1)
 
-        operation_questions = [
-            inquirer.List('mode',
-                          message="Select operation mode:",
-                          choices=[
-                              ('Train new model', '1'),
-                              ('Load existing model and predict', '2')
-                          ],
-                          )
-        ]
-        answers = inquirer.prompt(operation_questions)
-        mode = answers['mode']
-
-        if mode == "1":
-            dataset_questions = [
-                inquirer.List('dataset',
-                              message="Select dataset to use:",
+        while True:
+            operation_questions = [
+                inquirer.List('mode',
+                              message="Select operation mode:",
                               choices=[
-                                  ('dataset4.csv (4 sensors)', '4'),
-                                  ('dataset6.csv (6 sensors)', '6'),
-                                  ('dataset8.csv (8 sensors)', '8')
+                                  ('Train new model', '1'),
+                                  ('Load existing model and predict', '2'),
+                                  ('Exit', '0')
                               ],
                               )
             ]
-            dataset_answer = inquirer.prompt(dataset_questions)
-            dataset_choice = dataset_answer['dataset']
+            answers = inquirer.prompt(operation_questions)
+            mode = answers['mode']
 
-            if dataset_choice == "4":
-                csv_file = "dataset4.csv"
-            elif dataset_choice == "6":
-                csv_file = "dataset6.csv"
-            elif dataset_choice == "8":
-                csv_file = "dataset8.csv"
-            else:
-                print(f"Invalid choice: {dataset_choice}, using dataset8.csv")
-                csv_file = "dataset8.csv"
-                dataset_choice = "8"
+            if mode == "0":
+                print("Exiting program...")
+                break
 
-            print(f"Using dataset: {csv_file}")
+            if mode == "1":
+                dataset_questions = [
+                    inquirer.List('dataset',
+                                  message="Select dataset to use:",
+                                  choices=[
+                                      ('dataset4.csv (4 sensors)', '4'),
+                                      ('dataset6.csv (6 sensors)', '6'),
+                                      ('dataset8.csv (8 sensors)', '8')
+                                  ],
+                                  )
+                ]
+                dataset_answer = inquirer.prompt(dataset_questions)
+                dataset_choice = dataset_answer['dataset']
 
-            print("Loading data...")
-            X, y = model.load_data(csv_file)
+                if dataset_choice == "4":
+                    csv_file = "dataset4.csv"
+                elif dataset_choice == "6":
+                    csv_file = "dataset6.csv"
+                elif dataset_choice == "8":
+                    csv_file = "dataset8.csv"
+                else:
+                    print(f"Invalid choice: {dataset_choice}, using dataset8.csv")
+                    csv_file = "dataset8.csv"
+                    dataset_choice = "8"
 
-            if X is not None and y is not None:
-                print("Data loaded successfully, starting training...")
-                model.train(X, y, use_kfold=True)
+                print(f"Using dataset: {csv_file}")
 
+                print("Loading data...")
+                X, y = model.load_data(csv_file)
+
+                if X is not None and y is not None:
+                    print("Data loaded successfully, starting training...")
+                    model.train(X, y, use_kfold=True)
+
+                    model_file = f"adaboost_resnet_model_{dataset_choice}.pkl"
+                    model.save_model(model_file)
+
+                    print("Testing prediction:")
+                    test_data = X[:1]
+                    prediction = model.predict(test_data)
+                    print(f"Prediction: {prediction}")
+                else:
+                    print("Failed to load data properly")
+
+            elif mode == "2":
+                model_questions = [
+                    inquirer.List('model',
+                                  message="Select model to use:",
+                                  choices=[
+                                      ('4 sensor model (adaboost_resnet_model_4.pkl)', '4'),
+                                      ('6 sensor model (adaboost_resnet_model_6.pkl)', '6'),
+                                      ('8 sensor model (adaboost_resnet_model_8.pkl)', '8')
+                                  ],
+                                  )
+                ]
+                model_answer = inquirer.prompt(model_questions)
+                dataset_choice = model_answer['model']
                 model_file = f"adaboost_resnet_model_{dataset_choice}.pkl"
-                model.save_model(model_file)
 
-                print("Testing prediction:")
-                test_data = X[:1]
-                prediction = model.predict(test_data)
-                print(f"Prediction: {prediction}")
+                try:
+                    model.load_model(model_file)
+                    print(f"Model successfully loaded from {model_file}")
+
+                    prediction_loop = True
+                    while prediction_loop:
+                        input_questions = [
+                            inquirer.Text('sensor_values',
+                                          message="Enter sensor values (comma separated) or 'q' to quit:")
+                        ]
+                        input_answer = inquirer.prompt(input_questions)
+                        input_string = input_answer['sensor_values']
+
+                        if input_string.lower() == 'q':
+                            break
+
+                        result = model.predict_custom_input(input_string)
+
+                        if "error" in result:
+                            print(f"Error: {result['error']}")
+                        else:
+                            print(f"Prediction result: {result['predicted_class']}")
+                            print("Class probabilities:")
+                            for cls, prob in result['probabilities'].items():
+                                print(f"  {cls}: {prob:.4f}")
+
+                        continue_questions = [
+                            inquirer.Confirm('continue',
+                                             message="Would you like to make another prediction?",
+                                             default=True)
+                        ]
+                        continue_answer = inquirer.prompt(continue_questions)
+                        if not continue_answer['continue']:
+                            prediction_loop = False
+                except FileNotFoundError:
+                    print(f"Model file {model_file} not found. Train a model first.")
+                except Exception as e:
+                    print(f"Error loading model: {e}")
             else:
-                print("Failed to load data properly")
+                print("Invalid choice")
 
-        elif mode == "2":
-            model_questions = [
-                inquirer.List('model',
-                              message="Select model to use:",
-                              choices=[
-                                  ('4 sensor model (adaboost_resnet_model_4.pkl)', '4'),
-                                  ('6 sensor model (adaboost_resnet_model_6.pkl)', '6'),
-                                  ('8 sensor model (adaboost_resnet_model_8.pkl)', '8')
-                              ],
-                              )
-            ]
-            model_answer = inquirer.prompt(model_questions)
-            dataset_choice = model_answer['model']
-            model_file = f"adaboost_resnet_model_{dataset_choice}.pkl"
-
-            try:
-                model.load_model(model_file)
-                print(f"Model successfully loaded from {model_file}")
-
-                while True:
-                    input_questions = [
-                        inquirer.Text('sensor_values',
-                                      message="Enter sensor values (comma separated) or 'q' to quit:")
-                    ]
-                    input_answer = inquirer.prompt(input_questions)
-                    input_string = input_answer['sensor_values']
-
-                    if input_string.lower() == 'q':
-                        break
-
-                    result = model.predict_custom_input(input_string)
-
-                    if "error" in result:
-                        print(f"Error: {result['error']}")
-                    else:
-                        print(f"Prediction result: {result['predicted_class']}")
-                        print("Class probabilities:")
-                        for cls, prob in result['probabilities'].items():
-                            print(f"  {cls}: {prob:.4f}")
-
-                    continue_questions = [
-                        inquirer.Confirm('continue',
-                                         message="Would you like to make another prediction?",
-                                         default=True)
-                    ]
-                    continue_answer = inquirer.prompt(continue_questions)
-                    if not continue_answer['continue']:
-                        break
-            except FileNotFoundError:
-                print(f"Model file {model_file} not found. Train a model first.")
-            except Exception as e:
-                print(f"Error loading model: {e}")
-        else:
-            print("Invalid choice")
+            print("\n" + "-"*50 + "\n")
 
     except Exception as e:
         import traceback
