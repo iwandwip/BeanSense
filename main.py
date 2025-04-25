@@ -10,6 +10,7 @@ import inquirer
 import os
 import traceback
 import numpy as np
+import pandas as pd
 
 
 class ClassifierWrapper:
@@ -19,6 +20,12 @@ class ClassifierWrapper:
         self.current_model = None
         self.csv_file = None
         self.operation = None
+        self.labels = [
+            'aKaw-D', 'aKaw-L', 'aKaw-M',
+            'aSem-D', 'aSem-L', 'aSem-M',
+            'rGed-D', 'rGed-L', 'rGed-M',
+            'rTir-D', 'rTir-L', 'rTir-M'
+        ]
 
     def select_dataset(self):
         dataset_questions = [
@@ -55,6 +62,9 @@ class ClassifierWrapper:
                           choices=[
                               ('Train model', 'train'),
                               ('Predict with model', 'predict'),
+                              ('Add dataset', 'add_data'),
+                              ('Pop dataset', 'pop_data'),
+                              ('Delete dataset', 'delete_data'),
                               ('Back', 'back')
                           ],
                           )
@@ -254,6 +264,139 @@ class ClassifierWrapper:
 
         print("\n" + "-"*50 + "\n")
 
+    def select_label(self):
+        label_choices = [(label, label) for label in self.labels]
+
+        label_questions = [
+            inquirer.List('label',
+                          message="Select label:",
+                          choices=label_choices,
+                          )
+        ]
+        label_answer = inquirer.prompt(label_questions)
+        selected_label = label_answer['label']
+
+        return selected_label
+
+    def add_dataset(self):
+        if not os.path.exists(self.csv_file):
+            print(f"Dataset file {self.csv_file} does not exist. Creating new file.")
+            os.makedirs(os.path.dirname(self.csv_file), exist_ok=True)
+
+            num_features = int(self.dataset_choice)
+            columns = ['label'] + [f'feature{i+1}' for i in range(num_features)]
+            df = pd.DataFrame(columns=columns)
+            df.to_csv(self.csv_file, index=False)
+
+        selected_label = self.select_label()
+
+        num_features = int(self.dataset_choice)
+
+        print(f"Enter {num_features} sensor values (comma separated):")
+        sensor_values = input().strip()
+
+        try:
+            values = [int(float(x)) for x in sensor_values.split(',')]
+
+            if len(values) != num_features:
+                print(f"Error: Expected {num_features} values, but got {len(values)}.")
+                print("\n" + "-"*50 + "\n")
+                return
+
+            df = pd.read_csv(self.csv_file)
+
+            new_row_data = {df.columns[0]: selected_label}
+            for i, value in enumerate(values):
+                new_row_data[df.columns[i+1]] = value
+
+            new_row = pd.DataFrame([new_row_data])
+            df = pd.concat([df, new_row], ignore_index=True)
+
+            df.to_csv(self.csv_file, index=False)
+
+            print(f"Added new data point with label '{selected_label}' to {self.csv_file}")
+            print(f"Total records now: {len(df)}")
+
+        except ValueError:
+            print("Error: Invalid sensor values. Please enter comma-separated numbers.")
+
+        print("\n" + "-"*50 + "\n")
+
+    def pop_dataset(self):
+        if not os.path.exists(self.csv_file):
+            print(f"Dataset file {self.csv_file} does not exist.")
+            print("\n" + "-"*50 + "\n")
+            return
+
+        try:
+            df = pd.read_csv(self.csv_file)
+
+            if len(df) == 0:
+                print(f"Dataset {self.csv_file} is already empty.")
+                print("\n" + "-"*50 + "\n")
+                return
+
+            last_row = df.iloc[-1]
+            last_label = last_row.iloc[0]
+
+            df = df.iloc[:-1]
+
+            df.to_csv(self.csv_file, index=False)
+
+            print(f"Removed last data point with label '{last_label}' from {self.csv_file}")
+            print(f"Total records now: {len(df)}")
+
+        except Exception as e:
+            print(f"Error: {e}")
+            print(traceback.format_exc())
+
+        print("\n" + "-"*50 + "\n")
+
+    def delete_dataset(self):
+        if not os.path.exists(self.csv_file):
+            print(f"Dataset file {self.csv_file} does not exist.")
+            print("\n" + "-"*50 + "\n")
+            return
+
+        selected_label = self.select_label()
+
+        try:
+            df = pd.read_csv(self.csv_file)
+
+            label_column = df.columns[0]
+
+            count_label = len(df[df[label_column] == selected_label])
+
+            if count_label == 0:
+                print(f"No data points with label '{selected_label}' found in {self.csv_file}")
+                print("\n" + "-"*50 + "\n")
+                return
+
+            confirm_questions = [
+                inquirer.Confirm('confirm',
+                                 message=f"Are you sure you want to delete all {count_label} data points with label '{selected_label}'?",
+                                 default=False)
+            ]
+            confirm_answer = inquirer.prompt(confirm_questions)
+
+            if not confirm_answer['confirm']:
+                print("Operation cancelled.")
+                print("\n" + "-"*50 + "\n")
+                return
+
+            df = df[df[label_column] != selected_label]
+
+            df.to_csv(self.csv_file, index=False)
+
+            print(f"Deleted {count_label} data points with label '{selected_label}' from {self.csv_file}")
+            print(f"Total records now: {len(df)}")
+
+        except Exception as e:
+            print(f"Error: {e}")
+            print(traceback.format_exc())
+
+        print("\n" + "-"*50 + "\n")
+
     def run(self):
         while True:
             dataset_result = self.select_dataset()
@@ -267,11 +410,18 @@ class ClassifierWrapper:
                 if operation == "back":
                     break
 
-                while True:
-                    model_result = self.select_model_type()
+                if operation == "add_data":
+                    self.add_dataset()
+                elif operation == "pop_data":
+                    self.pop_dataset()
+                elif operation == "delete_data":
+                    self.delete_dataset()
+                else:
+                    while True:
+                        model_result = self.select_model_type()
 
-                    if model_result == "back":
-                        break
+                        if model_result == "back":
+                            break
 
 
 def main():
