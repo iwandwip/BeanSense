@@ -193,6 +193,9 @@ class ClassifierWrapper:
             new_row = pd.DataFrame([new_row_data])
             df = pd.concat([df, new_row], ignore_index=True)
 
+            label_column = df.columns[0]
+            df = df.sort_values(by=label_column).reset_index(drop=True)
+
             df.to_csv(self.csv_file, index=False)
 
             print(f"Added new data point with label '{selected_label}' to {self.csv_file}")
@@ -203,26 +206,28 @@ class ClassifierWrapper:
             print("Error: Invalid sensor values. Please enter comma-separated numbers.")
             return False
 
-    def pop_dataset_entry(self):
+    def pop_dataset_entry(self, selected_label):
         if not os.path.exists(self.csv_file):
             print(f"Dataset file {self.csv_file} does not exist.")
             return False
 
         try:
             df = pd.read_csv(self.csv_file)
+            label_column = df.columns[0]
 
-            if len(df) == 0:
-                print(f"Dataset {self.csv_file} is already empty.")
+            label_mask = df[label_column] == selected_label
+
+            if not any(label_mask):
+                print(f"No data points with label '{selected_label}' found in {self.csv_file}")
                 return False
 
-            last_row = df.iloc[-1]
-            last_label = last_row.iloc[0]
+            last_index = df[label_mask].index[-1]
 
-            df = df.iloc[:-1]
+            df = df.drop(last_index).reset_index(drop=True)
 
             df.to_csv(self.csv_file, index=False)
 
-            print(f"Removed last data point with label '{last_label}' from {self.csv_file}")
+            print(f"Removed last data point with label '{selected_label}' from {self.csv_file}")
             print(f"Total records now: {len(df)}")
             return True
 

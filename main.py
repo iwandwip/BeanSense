@@ -199,7 +199,8 @@ class MainMenu:
         print("\n" + "-"*50 + "\n")
 
     def handle_pop_data(self):
-        self.wrapper.pop_dataset_entry()
+        selected_label = self.select_label()
+        self.wrapper.pop_dataset_entry(selected_label)
 
         print("\n" + "-"*50 + "\n")
 
