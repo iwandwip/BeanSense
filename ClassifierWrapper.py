@@ -34,6 +34,12 @@ class ClassifierWrapper:
             'rTir-D', 'rTir-L', 'rTir-M'
         ]
 
+        self.column_order = {
+            '4': ['NAMA', 'MQ135', 'MQ2', 'MQ3', 'MQ6'],
+            '6': ['NAMA', 'MQ135', 'MQ2', 'MQ3', 'MQ6', 'MQ138', 'MQ7'],
+            '8': ['NAMA', 'MQ135', 'MQ2', 'MQ3', 'MQ6', 'MQ138', 'MQ7', 'MQ136', 'MQ5']
+        }
+
     def set_dataset(self, dataset_choice):
         self.dataset_choice = dataset_choice
 
@@ -166,14 +172,50 @@ class ClassifierWrapper:
         result = self.current_model.predict_custom_input(input_string)
         return result
 
+    def organize_dataset_by_label_order(self):
+        if not os.path.exists(self.csv_file):
+            return False
+
+        try:
+            df = pd.read_csv(self.csv_file)
+
+            result_df = pd.DataFrame(columns=df.columns)
+
+            for label in self.labels:
+                label_data = df[df['NAMA'] == label]
+                if not label_data.empty:
+                    result_df = pd.concat([result_df, label_data], ignore_index=True)
+
+            if len(result_df) == len(df):
+                result_df.to_csv(self.csv_file, index=False)
+                return True
+            else:
+                print("Warning: Some rows were not included in the reordering.")
+                return False
+
+        except Exception as e:
+            print(f"Error reorganizing dataset: {e}")
+            return False
+
+    def reorder_columns(self, df):
+        if self.dataset_choice in self.column_order:
+            cols = self.column_order[self.dataset_choice]
+            return df[cols]
+        return df
+
     def add_dataset_entry(self, selected_label, sensor_values):
         if not os.path.exists(self.csv_file):
             print(f"Dataset file {self.csv_file} does not exist. Creating new file.")
             os.makedirs(os.path.dirname(self.csv_file), exist_ok=True)
 
-            num_features = int(self.dataset_choice)
-            columns = ['label'] + [f'feature{i+1}' for i in range(num_features)]
-            df = pd.DataFrame(columns=columns)
+            if self.dataset_choice in self.column_order:
+                columns = self.column_order[self.dataset_choice]
+                df = pd.DataFrame(columns=columns)
+            else:
+                num_features = int(self.dataset_choice)
+                columns = ['NAMA'] + [f'feature{i+1}' for i in range(num_features)]
+                df = pd.DataFrame(columns=columns)
+
             df.to_csv(self.csv_file, index=False)
 
         try:
@@ -186,20 +228,50 @@ class ClassifierWrapper:
 
             df = pd.read_csv(self.csv_file)
 
-            new_row_data = {df.columns[0]: selected_label}
-            for i, value in enumerate(values):
-                new_row_data[df.columns[i+1]] = value
+            if df.empty:
+                new_row_data = {'NAMA': selected_label}
+                cols = df.columns.tolist()
+                for i, value in enumerate(values):
+                    if i + 1 < len(cols):
+                        new_row_data[cols[i+1]] = value
+            else:
+                new_row_data = {df.columns[0]: selected_label}
+                for i, value in enumerate(values):
+                    if i + 1 < len(df.columns):
+                        new_row_data[df.columns[i+1]] = value
 
             new_row = pd.DataFrame([new_row_data])
-            df = pd.concat([df, new_row], ignore_index=True)
 
-            label_column = df.columns[0]
-            df = df.sort_values(by=label_column).reset_index(drop=True)
+            result_df = pd.DataFrame(columns=df.columns)
+            found_label = False
 
-            df.to_csv(self.csv_file, index=False)
+            for label in self.labels:
+                label_data = df[df['NAMA'] == label]
+
+                if label == selected_label:
+                    found_label = True
+                    if not label_data.empty:
+                        result_df = pd.concat([result_df, label_data, new_row], ignore_index=True)
+                    else:
+                        result_df = pd.concat([result_df, new_row], ignore_index=True)
+                else:
+                    if not label_data.empty:
+                        result_df = pd.concat([result_df, label_data], ignore_index=True)
+
+            if not found_label:
+                result_df = pd.concat([result_df, new_row], ignore_index=True)
+
+            if len(result_df) != len(df) + 1:
+                print("Warning: Row count mismatch. Using simple append and sort.")
+                df = pd.concat([df, new_row], ignore_index=True)
+                df = self.reorder_columns(df)
+                self.organize_dataset_by_label_order()
+            else:
+                result_df = self.reorder_columns(result_df)
+                result_df.to_csv(self.csv_file, index=False)
 
             print(f"Added new data point with label '{selected_label}' to {self.csv_file}")
-            print(f"Total records now: {len(df)}")
+            print(f"Total records now: {len(result_df)}")
             return True
 
         except ValueError:
@@ -225,6 +297,7 @@ class ClassifierWrapper:
 
             df = df.drop(last_index).reset_index(drop=True)
 
+            df = self.reorder_columns(df)
             df.to_csv(self.csv_file, index=False)
 
             print(f"Removed last data point with label '{selected_label}' from {self.csv_file}")
@@ -257,6 +330,7 @@ class ClassifierWrapper:
 
             df = df[df[label_column] != selected_label]
 
+            df = self.reorder_columns(df)
             df.to_csv(self.csv_file, index=False)
 
             print(f"Deleted {count_label} data points with label '{selected_label}' from {self.csv_file}")
