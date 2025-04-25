@@ -1,19 +1,22 @@
+import lightgbm as lgb
+from lightgbm import LGBMClassifier
+import inquirer
+import tracemalloc
+import time
+from torch.utils.data import DataLoader, TensorDataset
+import torchvision.models as models
+import torch.nn as nn
+import torch
+from sklearn.metrics import accuracy_score, f1_score, roc_curve, auc
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler, label_binarize
+from sklearn.model_selection import train_test_split, StratifiedKFold
 import pandas as pd
 import numpy as np
 import pickle
 import os
-from sklearn.model_selection import train_test_split, StratifiedKFold
-from sklearn.preprocessing import LabelEncoder, MinMaxScaler, label_binarize
-from sklearn.metrics import accuracy_score, f1_score, roc_curve, auc
-import torch
-import torch.nn as nn
-import torchvision.models as models
-from torch.utils.data import DataLoader, TensorDataset
-import time
-import tracemalloc
-import inquirer
-from lightgbm import LGBMClassifier
-import lightgbm as lgb
+import warnings
+
+warnings.filterwarnings('ignore', category=UserWarning, module='sklearn')
 
 
 class LightGBMResNetModel:
