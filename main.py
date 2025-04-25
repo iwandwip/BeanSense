@@ -18,6 +18,7 @@ class ClassifierWrapper:
         self.model_type = None
         self.current_model = None
         self.csv_file = None
+        self.operation = None
 
     def select_dataset(self):
         dataset_questions = [
@@ -26,12 +27,16 @@ class ClassifierWrapper:
                           choices=[
                               ('dataset4.csv (4 sensors)', '4'),
                               ('dataset6.csv (6 sensors)', '6'),
-                              ('dataset8.csv (8 sensors)', '8')
+                              ('dataset8.csv (8 sensors)', '8'),
+                              ('Exit', 'exit')
                           ],
                           )
         ]
         dataset_answer = inquirer.prompt(dataset_questions)
         self.dataset_choice = dataset_answer['dataset']
+
+        if self.dataset_choice == "exit":
+            return "exit"
 
         if self.dataset_choice == "4":
             self.csv_file = "datasets/dataset4.csv"
@@ -43,10 +48,26 @@ class ClassifierWrapper:
         print(f"Using dataset: {self.csv_file}")
         return self.dataset_choice
 
+    def select_operation(self):
+        operation_questions = [
+            inquirer.List('operation',
+                          message="Select operation:",
+                          choices=[
+                              ('Train model', 'train'),
+                              ('Predict with model', 'predict'),
+                              ('Back', 'back')
+                          ],
+                          )
+        ]
+        operation_answer = inquirer.prompt(operation_questions)
+        self.operation = operation_answer['operation']
+
+        return self.operation
+
     def select_model_type(self):
         model_questions = [
             inquirer.List('model_type',
-                          message="Select model type:",
+                          message=f"Select model type for {self.operation}:",
                           choices=[
                               ('AdaBoost + ResNet', 'adaboost_resnet'),
                               ('CatBoost + ResNet', 'catboost_resnet'),
@@ -54,14 +75,23 @@ class ClassifierWrapper:
                               ('LightGBM + MobileNet', 'lightgbm_mobilenet'),
                               ('MobileNet + ICCS + LightGBM', 'mobilenet_iccs_lightgbm'),
                               ('Autoencoder + LightGBM', 'autoencoder_lightgbm'),
-                              ('RBF SVM + GridSearch', 'rbf_svm_gs')
+                              ('RBF SVM + GridSearch', 'rbf_svm_gs'),
+                              ('Back', 'back')
                           ],
                           )
         ]
         model_answer = inquirer.prompt(model_questions)
         self.model_type = model_answer['model_type']
 
+        if self.model_type == 'back':
+            return 'back'
+
         self.create_model_instance()
+
+        if self.operation == 'train':
+            self.train_model()
+        elif self.operation == 'predict':
+            self.predict_with_model()
 
         return self.model_type
 
@@ -118,8 +148,6 @@ class ClassifierWrapper:
         return self.current_model
 
     def train_model(self):
-        self.select_model_type()
-
         print(f"Training {self.model_type} model on {self.csv_file}...")
         X, y = self.current_model.load_data(self.csv_file)
 
@@ -156,9 +184,11 @@ class ClassifierWrapper:
             prediction = self.current_model.predict(test_data)
             print(f"Prediction: {prediction}")
 
+            print("\n" + "-"*50 + "\n")
             return True
         else:
             print("Failed to load data properly")
+            print("\n" + "-"*50 + "\n")
             return False
 
     def get_model_filename(self):
@@ -178,17 +208,17 @@ class ClassifierWrapper:
             return f"model/rbf_svm_gs_model_{self.dataset_choice}.pkl"
 
     def predict_with_model(self):
-        self.select_model_type()
-
         model_file = self.get_model_filename()
         try:
             self.current_model.load_model(model_file)
             print(f"Model successfully loaded from {model_file}")
         except FileNotFoundError:
             print(f"Model file {model_file} not found. Train a model first.")
+            print("\n" + "-"*50 + "\n")
             return
         except Exception as e:
             print(f"Error loading model: {e}")
+            print("\n" + "-"*50 + "\n")
             return
 
         prediction_loop = True
@@ -222,39 +252,33 @@ class ClassifierWrapper:
             if not continue_answer['continue']:
                 prediction_loop = False
 
-    def main_menu(self):
-        while True:
-            operation_questions = [
-                inquirer.List('operation',
-                              message="Select operation:",
-                              choices=[
-                                  ('Train new model', '1'),
-                                  ('Predict using model', '2'),
-                                  ('Exit', '0')
-                              ],
-                              )
-            ]
-            answers = inquirer.prompt(operation_questions)
-            operation = answers['operation']
+        print("\n" + "-"*50 + "\n")
 
-            if operation == "0":
-                print("Exiting program...")
+    def run(self):
+        while True:
+            dataset_result = self.select_dataset()
+
+            if dataset_result == "exit":
                 break
 
-            if operation == "1":
-                self.train_model()
+            while True:
+                operation = self.select_operation()
 
-            elif operation == "2":
-                self.predict_with_model()
+                if operation == "back":
+                    break
 
-            print("\n" + "-"*50 + "\n")
+                while True:
+                    model_result = self.select_model_type()
+
+                    if model_result == "back":
+                        break
 
 
 def main():
     try:
         wrapper = ClassifierWrapper()
-        wrapper.select_dataset()
-        wrapper.main_menu()
+        wrapper.run()
+        print("Exiting program...")
     except Exception as e:
         print(f"Error occurred: {e}")
         print(traceback.format_exc())
