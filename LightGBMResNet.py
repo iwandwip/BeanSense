@@ -13,6 +13,7 @@ import time
 import tracemalloc
 import inquirer
 from lightgbm import LGBMClassifier
+import lightgbm as lgb
 
 
 class LightGBMResNetModel:
@@ -108,13 +109,18 @@ class LightGBMResNetModel:
                     verbose=-1
                 )
 
-                self.classifier.fit(
-                    X_train_feat, y_train_feat,
-                    eval_set=[(X_test_feat, y_test_feat)],
-                    eval_metric='multi_logloss',
-                    early_stopping_rounds=10,
-                    verbose=0
-                )
+                try:
+                    callbacks = [lgb.early_stopping(stopping_rounds=10)]
+                    self.classifier.fit(
+                        X_train_feat, y_train_feat,
+                        eval_set=[(X_test_feat, y_test_feat)],
+                        eval_metric='multi_logloss',
+                        callbacks=callbacks
+                    )
+                except Exception as e:
+                    print(f"Warning: Error during fitting with callbacks: {e}")
+                    print("Falling back to basic fit without callbacks...")
+                    self.classifier.fit(X_train_feat, y_train_feat)
 
                 y_pred = self.classifier.predict(X_test_feat)
                 y_prob = self.classifier.predict_proba(X_test_feat)
@@ -157,13 +163,18 @@ class LightGBMResNetModel:
                 verbose=-1
             )
 
-            self.classifier.fit(
-                X_train_feat, y_train_feat,
-                eval_set=[(X_test_feat, y_test_feat)],
-                eval_metric='multi_logloss',
-                early_stopping_rounds=10,
-                verbose=0
-            )
+            try:
+                callbacks = [lgb.early_stopping(stopping_rounds=10)]
+                self.classifier.fit(
+                    X_train_feat, y_train_feat,
+                    eval_set=[(X_test_feat, y_test_feat)],
+                    eval_metric='multi_logloss',
+                    callbacks=callbacks
+                )
+            except Exception as e:
+                print(f"Warning: Error during fitting with callbacks: {e}")
+                print("Falling back to basic fit without callbacks...")
+                self.classifier.fit(X_train_feat, y_train_feat)
 
             y_pred = self.classifier.predict(X_test_feat)
             y_prob = self.classifier.predict_proba(X_test_feat)
