@@ -9,4 +9,4 @@ torchvision>=0.15.0
 lightgbm>=3.3.5
 catboost>=1.1.1
 inquirer>=3.4.0
-tabgan>=1.3.3
+# tabgan>=1.3.3
