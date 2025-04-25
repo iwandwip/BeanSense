@@ -15,16 +15,20 @@ import pickle
 import os
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning, module='sklearn')
+warnings.filterwarnings('ignore', category=RuntimeWarning)
 
 
 class MobileNetLightGBMModel:
-    def __init__(self, n_estimators=150, learning_rate=0.05, max_depth=7, colsample_bytree=0.9,
-                 subsample=0.9, batch_size=64, random_state=42):
+    def __init__(self, n_estimators=120, learning_rate=0.01, max_depth=5, colsample_bytree=0.8,
+                 subsample=0.8, reg_alpha=0.1, reg_lambda=0.1, min_child_samples=20, batch_size=64, random_state=42):
         self.n_estimators = n_estimators
         self.learning_rate = learning_rate
         self.max_depth = max_depth
         self.colsample_bytree = colsample_bytree
         self.subsample = subsample
+        self.reg_alpha = reg_alpha
+        self.reg_lambda = reg_lambda
+        self.min_child_samples = min_child_samples
         self.batch_size = batch_size
         self.random_state = random_state
 
@@ -109,7 +113,11 @@ class MobileNetLightGBMModel:
                     learning_rate=self.learning_rate,
                     colsample_bytree=self.colsample_bytree,
                     subsample=self.subsample,
-                    random_state=self.random_state
+                    reg_alpha=self.reg_alpha,
+                    reg_lambda=self.reg_lambda,
+                    min_child_samples=self.min_child_samples,
+                    random_state=self.random_state,
+                    verbosity=-1
                 )
 
                 self.classifier.fit(X_train_feat, y_train_feat)
@@ -150,7 +158,11 @@ class MobileNetLightGBMModel:
                 learning_rate=self.learning_rate,
                 colsample_bytree=self.colsample_bytree,
                 subsample=self.subsample,
-                random_state=self.random_state
+                reg_alpha=self.reg_alpha,
+                reg_lambda=self.reg_lambda,
+                min_child_samples=self.min_child_samples,
+                random_state=self.random_state,
+                verbosity=-1
             )
 
             self.classifier.fit(X_train_feat, y_train_feat)
@@ -241,6 +253,9 @@ class MobileNetLightGBMModel:
             'max_depth': self.max_depth,
             'colsample_bytree': self.colsample_bytree,
             'subsample': self.subsample,
+            'reg_alpha': self.reg_alpha,
+            'reg_lambda': self.reg_lambda,
+            'min_child_samples': self.min_child_samples,
             'random_state': self.random_state
         }
 
@@ -264,19 +279,29 @@ class MobileNetLightGBMModel:
         self.label_encoder = model_data['label_encoder']
         self.scaler = model_data['scaler']
         self.is_trained = model_data['is_trained']
-        self.n_estimators = model_data['n_estimators']
-        self.learning_rate = model_data['learning_rate']
-        self.max_depth = model_data['max_depth']
-        self.colsample_bytree = model_data['colsample_bytree']
-        self.subsample = model_data['subsample']
-        self.random_state = model_data['random_state']
+        self.n_estimators = model_data.get('n_estimators', self.n_estimators)
+        self.learning_rate = model_data.get('learning_rate', self.learning_rate)
+        self.max_depth = model_data.get('max_depth', self.max_depth)
+        self.colsample_bytree = model_data.get('colsample_bytree', self.colsample_bytree)
+        self.subsample = model_data.get('subsample', self.subsample)
+        self.reg_alpha = model_data.get('reg_alpha', self.reg_alpha)
+        self.reg_lambda = model_data.get('reg_lambda', self.reg_lambda)
+        self.min_child_samples = model_data.get('min_child_samples', self.min_child_samples)
+        self.random_state = model_data.get('random_state', self.random_state)
 
         print(f"Model loaded from {filepath}")
 
 
 def main():
     try:
-        model = MobileNetLightGBMModel(n_estimators=150, learning_rate=0.05, max_depth=7)
+        model = MobileNetLightGBMModel(
+            n_estimators=120,
+            learning_rate=0.01,
+            max_depth=5,
+            reg_alpha=0.1,
+            reg_lambda=0.1,
+            min_child_samples=20
+        )
 
         while True:
             operation_questions = [
