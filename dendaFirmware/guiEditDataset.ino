@@ -1,71 +1,6 @@
 // =================== CONSTANT ===================
 const int BACK_OPTION = -1;
 
-// =================== LOOP ===================
-void loop() {
-  button.loop();
-  guiHome(); // Main entry point for all menu functionality
-}
-
-// =================== MAIN MENU SYSTEM ===================
-void guiHome() {
-  static bool inMainMenu = true;
-
-  if (inMainMenu) {
-    displayHome();
-    inMainMenu = false;
-  }
-
-  int CLK_state = digitalRead(CLK_PIN);
-  if (CLK_state != prev_CLK_state && CLK_state == HIGH) {
-    if (digitalRead(DT_PIN) == HIGH) {
-      if (menuIndex > 0) menuIndex--;
-    } else {
-      if (menuIndex < totalMenuItems - 1) menuIndex++;
-    }
-    displayHome();
-    delay(100);
-  }
-
-  if (button.isPressed()) {
-    while (button.isPressed()) button.loop(); // Debounce
-
-    switch (menuIndex) {
-      case 0:
-        // First menu item
-        break;
-      case 1:
-        // Second menu item
-        break;
-      case 2:
-        selectDatasetMenu(); // <-- Menu Dataset
-        displayHome(); // Refresh home setelah keluar
-        break;
-    }
-  }
-
-  prev_CLK_state = CLK_state;
-}
-
-// =================== DISPLAY MAIN MENU ===================
-void displayHome() {
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_WHITE);
-  tft.setTextSize(2);
-  tft.setCursor(90, 10);
-  tft.println("MENU");
-
-  for (int i = 0; i < totalMenuItems; i++) {
-    if (i == menuIndex) {
-      tft.setTextColor(TFT_WHITE, TFT_BLUE);
-    } else {
-      tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    }
-    tft.setCursor(40, 50 + (i * 30));
-    tft.print(menuItems[i]);
-  }
-}
-
 // =================== MENU PILIH DATASET ===================
 void selectDatasetMenu() {
   datasetIndex = 0;
@@ -93,11 +28,11 @@ void selectDatasetMenu() {
     }
 
     if (button.isPressed()) {
-      while (button.isPressed()) button.loop(); // Debounce
+      while (button.isPressed()) button.loop();  // Debounce
 
       if (datasetIndex == totalDatasets) {
         // Pilih Back
-        inDatasetMenu = false;
+        break;
       } else {
         // Pilih Dataset
         selectedDataset = datasetFiles[datasetIndex];
@@ -108,7 +43,7 @@ void selectDatasetMenu() {
         tft.setTextSize(2);
         tft.setTextColor(TFT_CYAN);
         tft.setCursor(20, 10);
-        tft.println("Pilih Dataset:");
+        tft.println("edit Dataset:");
         displayDatasetChoices();
       }
     }
@@ -135,10 +70,28 @@ void displayDatasetChoices() {
   }
 }
 
+
+void displaySensorChoices() {
+  for (int i = 0; i <= totalDatasets; i++) {
+    if (i == datasetIndex) {
+      tft.setTextColor(TFT_WHITE, TFT_BLUE);
+    } else {
+      tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    }
+    tft.setCursor(40, 50 + (i * 30));
+
+    if (i == totalDatasets) {
+      tft.print("Back");
+    } else {
+      tft.print(sensorName[i]);
+    }
+  }
+}
+
 // =================== TAMPILKAN ISI DATASET ===================
 void viewDatasetPage() {
   scrollOffset = 0;
-  selectedLine = 0; // 0 = Back
+  selectedLine = 0;  // 0 = Back
   totalLines = 0;
   const int linesPerPage = 10;
   bool inDatasetPage = true;
@@ -155,7 +108,7 @@ void viewDatasetPage() {
     return;
   }
 
-  file.readStringUntil('\n'); // Skip header
+  file.readStringUntil('\n');  // Skip der
   while (file.available()) {
     String line = file.readStringUntil('\n');
     if (line.length() > 1) totalLines++;
@@ -216,7 +169,7 @@ void viewDatasetPage() {
         }
       }
       displayCursor();
-      delay(120);
+      delay(250);
     }
 
 
@@ -261,7 +214,7 @@ void displayDatasetContent() {
   tft.print("Back");
 
   fs::File file = SPIFFS.open(selectedDataset, "r");
-  file.readStringUntil('\n'); // Skip header
+  file.readStringUntil('\n');  // Skip der
 
   for (int i = 0; i < scrollOffset; i++) {
     file.readStringUntil('\n');
@@ -284,9 +237,9 @@ void displayDatasetContent() {
 // =================== TAMPILKAN KURSOR ===================
 void displayCursor() {
   // Clear semua posisi cursor
-  tft.fillRect(5, 25, 15, 15, TFT_BLACK); // Back
+  tft.fillRect(5, 25, 15, 15, TFT_BLACK);  // Back
   for (int i = 0; i < linesPerPage; i++) {
-    tft.fillRect(5, 45 + (i * 20), 15, 15, TFT_BLACK); // Data rows
+    tft.fillRect(5, 45 + (i * 20), 15, 15, TFT_BLACK);  // Data rows
   }
 
   // Gambar cursor segitiga
@@ -295,22 +248,20 @@ void displayCursor() {
       20, 25 + 5,
       10, 25,
       10, 25 + 10,
-      TFT_BLUE
-    );
+      TFT_BLUE);
   } else {
     tft.fillTriangle(
       20, 45 + ((selectedLine - 1) * 20) + 5,
       10, 45 + ((selectedLine - 1) * 20),
       10, 45 + ((selectedLine - 1) * 20) + 10,
-      TFT_BLUE
-    );
+      TFT_BLUE);
   }
 }
 
 // =================== EDIT ROW ===================
 void editDataRow(int rowNumber) {
   int submenuIndex = 0;
-  const char* subMenuItems[] = {"Predict", "Delete", "Back"};
+  const char* subMenuItems[] = { "Predict", "Delete", "Back" };
   const int subMenuCount = 3;
   bool inRowMenu = true;
 
