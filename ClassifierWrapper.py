@@ -192,6 +192,8 @@ class ClassifierWrapper:
             class_probs = {self.current_model.label_encoder.inverse_transform([i])[0]: prob
                            for i, prob in enumerate(probabilities)}
 
+            predicted_probability = class_probs[prediction_label]
+
             end_time = time.time()
             current, peak = tracemalloc.get_traced_memory()
             tracemalloc.stop()
@@ -202,6 +204,7 @@ class ClassifierWrapper:
 
             return {
                 "predicted_class": prediction_label,
+                "predicted_probability": predicted_probability,
                 "probabilities": class_probs,
                 "memory_used": memory_used,
                 "peak_memory": peak_memory,

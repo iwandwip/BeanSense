@@ -182,6 +182,7 @@ class MainMenu:
                 print(f"Error: {result['error']}")
             else:
                 print(f"Prediction result: {result['predicted_class']}")
+                print(f"Prediction probability: {result['predicted_probability']:.4f}")
                 print("Class probabilities:")
                 for cls, prob in result['probabilities'].items():
                     print(f"  {cls}: {prob:.4f}")
