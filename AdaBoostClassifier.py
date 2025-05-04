@@ -41,8 +41,6 @@ class AdaBoostResNetModel:
 
     def load_data(self, csv_path, features_cols=None, target_col=None):
         dataset = pd.read_csv(csv_path)
-        print(f"Dataset shape: {dataset.shape}")
-        print(f"Dataset columns: {dataset.columns.tolist()}")
 
         if target_col is None:
             target_col = 0
@@ -50,17 +48,12 @@ class AdaBoostResNetModel:
         if features_cols is None:
             features_cols = [i for i in range(dataset.shape[1]) if i != target_col]
 
-        print(f"Using features columns: {features_cols}")
-        print(f"Using target column: {target_col}")
-
         X = dataset.iloc[:, features_cols].values
         y = dataset.iloc[:, target_col].values
 
         y = self.label_encoder.fit_transform(y)
         X = self.scaler.fit_transform(X)
 
-        print(f"X shape: {X.shape}, y shape: {y.shape}")
-        print(f"Unique classes: {self.label_encoder.classes_}")
         return X, y
 
     def extract_features(self, X_data, y_data=None):
@@ -116,9 +109,13 @@ class AdaBoostResNetModel:
                 results.append((acc, f1, avg_auc))
 
             accs, f1s, aucs = zip(*results)
-            print(f"Avg Accuracy: {np.mean(accs):.4f} ± {np.std(accs):.4f}")
-            print(f"Avg F1-Score: {np.mean(f1s):.4f} ± {np.std(f1s):.4f}")
-            print(f"Avg AUC: {np.mean(aucs):.4f} ± {np.std(aucs):.4f}")
+            avg_accuracy = np.mean(accs)
+            avg_f1_score = np.mean(f1s)
+            avg_auc_score = np.mean(aucs)
+
+            print(f"Avg Accuracy: {avg_accuracy:.4f} ± {np.std(accs):.4f}")
+            print(f"Avg F1-Score: {avg_f1_score:.4f} ± {np.std(f1s):.4f}")
+            print(f"Avg AUC: {avg_auc_score:.4f} ± {np.std(aucs):.4f}")
         else:
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=test_size, random_state=self.random_state, stratify=y
@@ -142,6 +139,10 @@ class AdaBoostResNetModel:
                 aucs.append(auc(fpr, tpr))
             avg_auc = np.mean(aucs)
 
+            avg_accuracy = acc
+            avg_f1_score = f1
+            avg_auc_score = avg_auc
+
             print(f"Accuracy: {acc:.4f}, F1-Score: {f1:.4f}, AUC: {avg_auc:.4f}")
             results = [(acc, f1, avg_auc)]
 
@@ -151,30 +152,81 @@ class AdaBoostResNetModel:
         current, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
 
-        print(f"Total Training Time: {end_time - start_time:.2f}s")
-        print(f"Memory Used: {current / 1e6:.2f} MB, Peak: {peak / 1e6:.2f} MB")
+        execution_time = end_time - start_time
+        memory_used = current / 1e6
+        peak_memory = peak / 1e6
 
-        return results
+        print(f"Total Training Time: {execution_time:.2f}s")
+        print(f"Memory Used: {memory_used:.2f} MB, Peak: {peak_memory:.2f} MB")
 
-    def predict(self, X, return_proba=False):
+        return {
+            "avg_accuracy": avg_accuracy,
+            "avg_f1_score": avg_f1_score,
+            "avg_auc": avg_auc_score,
+            "memory_used": memory_used,
+            "peak_memory": peak_memory,
+            "execution_time": execution_time
+        }
+
+    def predict(self, X, return_metrics=False, y_true=None):
         if not self.is_trained:
             raise Exception("Model has not been trained yet. Call train() first.")
+
+        start_time = time.time()
+        tracemalloc.start()
 
         X_scaled = self.scaler.transform(X)
         X_feat, _ = self.extract_features(X_scaled)
 
-        if return_proba:
-            return self.classifier.predict_proba(X_feat)
+        predictions = self.classifier.predict(X_feat)
+        probabilities = self.classifier.predict_proba(X_feat)
+
+        result = {
+            "predictions": self.label_encoder.inverse_transform(predictions),
+            "probabilities": probabilities
+        }
+
+        if return_metrics and y_true is not None:
+            y_true_encoded = self.label_encoder.transform(y_true)
+
+            acc = accuracy_score(y_true_encoded, predictions)
+            f1 = f1_score(y_true_encoded, predictions, average='macro')
+
+            y_true_bin = label_binarize(y_true_encoded, classes=np.unique(y_true_encoded))
+            aucs = []
+            for i in range(y_true_bin.shape[1]):
+                fpr, tpr, _ = roc_curve(y_true_bin[:, i], probabilities[:, i])
+                aucs.append(auc(fpr, tpr))
+            avg_auc = np.mean(aucs)
+
+            end_time = time.time()
+            current, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+
+            result.update({
+                "avg_accuracy": acc,
+                "avg_f1_score": f1,
+                "avg_auc": avg_auc,
+                "memory_used": current / 1e6,
+                "peak_memory": peak / 1e6,
+                "execution_time": end_time - start_time
+            })
         else:
-            predictions = self.classifier.predict(X_feat)
-            return self.label_encoder.inverse_transform(predictions)
+            tracemalloc.stop()
+
+        return result
 
     def predict_single(self, features, return_proba=False):
         if not self.is_trained:
             raise Exception("Model has not been trained yet. Call train() first.")
 
         features = np.array(features).reshape(1, -1)
-        return self.predict(features, return_proba)
+        result = self.predict(features)
+
+        if return_proba:
+            return result["probabilities"][0]
+        else:
+            return result["predictions"][0]
 
     def predict_custom_input(self, input_string):
         if not self.is_trained:
@@ -187,18 +239,16 @@ class AdaBoostResNetModel:
             if features.shape[1] != self.scaler.n_features_in_:
                 raise ValueError(f"Input features count ({features.shape[1]}) does not match model ({self.scaler.n_features_in_})")
 
-            X_scaled = self.scaler.transform(features)
-            X_feat, _ = self.extract_features(X_scaled)
+            result = self.predict(features)
 
-            prediction_idx = self.classifier.predict(X_feat)
-            prediction_label = self.label_encoder.inverse_transform(prediction_idx)
+            prediction_label = result["predictions"][0]
+            probabilities = result["probabilities"][0]
 
-            probabilities = self.classifier.predict_proba(X_feat)[0]
             class_probs = {self.label_encoder.inverse_transform([i])[0]: prob
                            for i, prob in enumerate(probabilities)}
 
             return {
-                "predicted_class": prediction_label[0],
+                "predicted_class": prediction_label,
                 "probabilities": class_probs
             }
         except Exception as e:
@@ -223,8 +273,6 @@ class AdaBoostResNetModel:
         with open(filepath, 'wb') as f:
             pickle.dump(model_data, f)
 
-        print(f"Model saved to {filepath}")
-
     def load_model(self, filepath):
         if not os.path.exists(filepath):
             raise FileNotFoundError(f"Model file not found: {filepath}")
@@ -240,8 +288,6 @@ class AdaBoostResNetModel:
         self.learning_rate = model_data['learning_rate']
         self.max_depth = model_data['max_depth']
         self.random_state = model_data['random_state']
-
-        print(f"Model loaded from {filepath}")
 
 
 def main():
@@ -298,14 +344,20 @@ def main():
 
                 if X is not None and y is not None:
                     print("Data loaded successfully, starting training...")
-                    model.train(X, y, use_kfold=True)
+                    metrics = model.train(X, y, use_kfold=True)
+
+                    print("\nTraining Results:")
+                    print(f"Average Accuracy: {metrics['avg_accuracy']:.4f}")
+                    print(f"Average F1-Score: {metrics['avg_f1_score']:.4f}")
+                    print(f"Average AUC: {metrics['avg_auc']:.4f}")
+                    print(f"Memory Used: {metrics['memory_used']:.2f} MB")
 
                     model_file = f"model/adaboost_resnet_model_{dataset_choice}.pkl"
                     model.save_model(model_file)
 
                     print("Testing prediction:")
                     test_data = X[:1]
-                    prediction = model.predict(test_data)
+                    prediction = model.predict_single(test_data)
                     print(f"Prediction: {prediction}")
                 else:
                     print("Failed to load data properly")
