@@ -10,6 +10,8 @@ import os
 import traceback
 import numpy as np
 import pandas as pd
+import time
+import tracemalloc
 
 
 class ClassifierWrapper:
@@ -135,24 +137,24 @@ class ClassifierWrapper:
 
             if self.model_type == 'mobilenet_iccs_lightgbm':
                 feature_cache = f"cache/features_{self.dataset_choice}.npz"
-                self.current_model.train(X, y, use_kfold=True, use_cached_features=use_cached_features, feature_cache_file=feature_cache)
+                metrics = self.current_model.train(X, y, use_kfold=True, use_cached_features=use_cached_features, feature_cache_file=feature_cache)
             elif self.model_type == 'autoencoder_lightgbm':
-                self.current_model.train(X, y, use_kfold=True, show_plots=show_plots)
+                metrics = self.current_model.train(X, y, use_kfold=True, show_plots=show_plots)
             else:
-                self.current_model.train(X, y, use_kfold=True)
+                metrics = self.current_model.train(X, y, use_kfold=True)
 
             model_file = self.get_model_filename()
             self.current_model.save_model(model_file)
 
             print("Testing prediction:")
             test_data = X[:1]
-            prediction = self.current_model.predict(test_data)
+            prediction = self.current_model.predict_single(test_data)
             print(f"Prediction: {prediction}")
 
-            return True
+            return metrics
         else:
             print("Failed to load data properly")
-            return False
+            return None
 
     def predict_with_model(self, input_string):
         model_file = self.get_model_filename()
@@ -169,8 +171,45 @@ class ClassifierWrapper:
         if input_string.lower() == 'q':
             return 'quit'
 
-        result = self.current_model.predict_custom_input(input_string)
-        return result
+        start_time = time.time()
+        tracemalloc.start()
+
+        try:
+            values = [float(x) for x in input_string.strip().split(',')]
+            features = np.array(values).reshape(1, -1)
+
+            X_scaled = self.current_model.scaler.transform(features)
+            X_feat = self.current_model.extract_features(X_scaled)[0]
+
+            if hasattr(self.current_model, 'selected_indices'):
+                if self.current_model.selected_indices is not None:
+                    X_feat = X_feat[:, self.current_model.selected_indices]
+
+            prediction_idx = self.current_model.classifier.predict(X_feat)[0]
+            prediction_label = self.current_model.label_encoder.inverse_transform([prediction_idx])[0]
+
+            probabilities = self.current_model.classifier.predict_proba(X_feat)[0]
+            class_probs = {self.current_model.label_encoder.inverse_transform([i])[0]: prob
+                           for i, prob in enumerate(probabilities)}
+
+            end_time = time.time()
+            current, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+
+            execution_time = end_time - start_time
+            memory_used = current / 1e6
+            peak_memory = peak / 1e6
+
+            return {
+                "predicted_class": prediction_label,
+                "probabilities": class_probs,
+                "memory_used": memory_used,
+                "peak_memory": peak_memory,
+                "execution_time": execution_time
+            }
+        except Exception as e:
+            tracemalloc.stop()
+            return {"error": str(e)}
 
     def organize_dataset_by_label_order(self):
         if not os.path.exists(self.csv_file):

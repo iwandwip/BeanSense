@@ -118,6 +118,8 @@ class MainMenu:
         if model_type == 'back':
             return
 
+        metrics = None
+
         if model_type == 'mobilenet_iccs_lightgbm':
             cache_questions = [
                 inquirer.Confirm('use_cached',
@@ -127,7 +129,7 @@ class MainMenu:
             cache_answer = inquirer.prompt(cache_questions)
             use_cached = cache_answer['use_cached']
 
-            self.wrapper.train_model(use_cached_features=use_cached)
+            metrics = self.wrapper.train_model(use_cached_features=use_cached)
         elif model_type == 'autoencoder_lightgbm':
             plot_questions = [
                 inquirer.Confirm('show_plots',
@@ -137,9 +139,18 @@ class MainMenu:
             plot_answer = inquirer.prompt(plot_questions)
             show_plots = plot_answer['show_plots']
 
-            self.wrapper.train_model(show_plots=show_plots)
+            metrics = self.wrapper.train_model(show_plots=show_plots)
         else:
-            self.wrapper.train_model()
+            metrics = self.wrapper.train_model()
+
+        if metrics:
+            print("\n=== Training Metrics ===")
+            print(f"Average Accuracy: {metrics['avg_accuracy']:.4f}")
+            print(f"Average F1-Score: {metrics['avg_f1_score']:.4f}")
+            print(f"Average AUC: {metrics['avg_auc']:.4f}")
+            print(f"Memory Used: {metrics['memory_used']:.2f} MB")
+            print(f"Peak Memory: {metrics['peak_memory']:.2f} MB")
+            print(f"Execution Time: {metrics['execution_time']:.2f} seconds")
 
         print("\n" + "-"*50 + "\n")
 
@@ -174,6 +185,12 @@ class MainMenu:
                 print("Class probabilities:")
                 for cls, prob in result['probabilities'].items():
                     print(f"  {cls}: {prob:.4f}")
+
+                if "memory_used" in result:
+                    print("\n=== Prediction Metrics ===")
+                    print(f"Memory Used: {result['memory_used']:.2f} MB")
+                    print(f"Peak Memory: {result['peak_memory']:.2f} MB")
+                    print(f"Execution Time: {result['execution_time']:.2f} seconds")
 
             continue_questions = [
                 inquirer.Confirm('continue',
