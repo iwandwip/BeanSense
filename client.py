@@ -71,10 +71,9 @@ class CoffeeClassifierClient:
             dataset_name = self.dataset_names[dataset_index]
             model_type = self.model_types[method_index]
 
-            if not os.path.exists(f"datasets/{dataset_name}.csv"):
-                if not self.download_dataset(dataset_name):
-                    self.send_result({"error": f"Failed to download {dataset_name}.csv"})
-                    return False
+            if not self.download_dataset(dataset_name):
+                self.send_result({"error": f"Failed to download {dataset_name}.csv"})
+                return False
 
             self.wrapper.set_dataset(dataset_name.replace("dataset", ""))
             self.wrapper.create_model(model_type)
