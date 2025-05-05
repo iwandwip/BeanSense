@@ -202,10 +202,18 @@ class ClassifierWrapper:
             memory_used = current / 1e6
             peak_memory = peak / 1e6
 
+            # return {
+            #     "predicted_class": prediction_label,
+            #     "predicted_probability": predicted_probability,
+            #     "probabilities": class_probs,
+            #     "memory_used": memory_used,
+            #     "peak_memory": peak_memory,
+            #     "execution_time": execution_time
+            # }
+
             return {
-                "predicted_class": prediction_label,
-                "predicted_probability": predicted_probability,
-                "probabilities": class_probs,
+                "label": prediction_label,
+                "accuracy": predicted_probability,
                 "memory_used": memory_used,
                 "peak_memory": peak_memory,
                 "execution_time": execution_time
