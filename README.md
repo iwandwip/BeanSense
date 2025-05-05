@@ -226,4 +226,4 @@ Each model outputs these metrics during training, allowing for direct comparison
 Created by:
 
 - **Iwan Dwi**: [iwan.dwp@gmail.com]
-- **Zainul**: [zainul@gmail.com]
+- **Ahmad Zainul**: [ahmadzainularifin6@gmail.com]
