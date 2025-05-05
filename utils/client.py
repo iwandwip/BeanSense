@@ -1,13 +1,11 @@
 # request.py
+import os
 import requests
 import time
-from main_controller import MainController
 
 esp32_ip = "http://192.168.4.1"
 datasetName = ["dataset4", "dataset6", "dataset8"]
-controller = MainController()
 
-import os
 
 def download_and_save(dataset_name):
     folder_path = "datasets"
@@ -24,6 +22,7 @@ def download_and_save(dataset_name):
     else:
         print(f"Failed to download {dataset_name}. Status code: {response.status_code}")
 
+
 def main():
     print("Polling ESP32 for commands...\n")
     while True:
@@ -32,7 +31,7 @@ def main():
             if response.status_code == 200:
                 cmd = response.text.strip()
                 print(f"📥 Command received: {cmd}")
-                
+
                 parts = cmd.split(',')
 
                 if parts[0] == "train" and len(parts) == 3:
@@ -43,10 +42,16 @@ def main():
                     if 0 <= dataset_index < len(datasetName):
                         dataset_file = datasetName[dataset_index]
                         download_and_save(dataset_file)
-                        controller.setup_dataset(dataset_index)
-                        # 2. Train
-                        result = controller.train(metode_index)
-                        result_str = ",".join(f"{k}:{v}" for k, v in result.items())
+
+                        result_str = {
+                            "avg_accuracy": 2,
+                            "avg_f1_score": 2,
+                            "avg_auc": 2,
+                            "memory_used": 2,
+                            "peak_memory": 2,
+                            "execution_time": 2
+                        }
+
                         # 3. Send result
                         r = requests.post(f"{esp32_ip}/post-result", data=result_str, timeout=5)
                         print(f"📤 Result sent: {result_str} | Response: {r.text}")
@@ -60,20 +65,18 @@ def main():
                     metode_index = int(parts[2])
                     input_data = ",".join(parts[3:])
 
-                    controller.setup_dataset(dataset_index)
-                    result = controller.predict(metode_index, input_data)
-
-                    if result is None or "error" in result:
-                        result_str = f"error:{result.get('error', 'Unknown error')}"
-                    else:
-                        pred = result['predicted_class']
-                        result_str = f"predicted_class:{pred}"
-                        for cls, prob in result['probabilities'].items():
-                            result_str += f",{cls}:{prob:.4f}"
+                    result_str = {
+                        "predicted_class": 2,
+                        "predicted_probability": 2,
+                        "probabilities": 2,
+                        "memory_used": 2,
+                        "peak_memory": 2,
+                        "execution_time": 2
+                    }
 
                     r = requests.post(f"{esp32_ip}/post-result", data=result_str, timeout=5)
                     print(f"📤 Prediction result sent: {result_str} | Response: {r.text}")
-
+                    requests.post(f"{esp32_ip}/post-result", data="idle", timeout=5)
                 else:
                     print("⚠️ Unknown or malformed command format.")
 
@@ -81,6 +84,7 @@ def main():
             print("wait")
 
         time.sleep(2)
+
 
 if __name__ == "__main__":
     main()
