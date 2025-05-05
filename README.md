@@ -1,6 +1,6 @@
-# BeanSense: Advanced Coffee Classification System
+# BeanSense: Coffee Classification System
 
-BeanSense is a sophisticated machine learning system designed to classify coffee samples based on sensor readings. It combines deep learning architectures for feature extraction with various state-of-the-art classifiers to achieve high accuracy in coffee bean identification and classification.
+BeanSense is a machine learning system designed to classify coffee samples based on sensor readings. It combines deep learning architectures for feature extraction with various classifiers to achieve accurate coffee bean identification and classification.
 
 ## 📋 Table of Contents
 
@@ -8,6 +8,7 @@ BeanSense is a sophisticated machine learning system designed to classify coffee
 - [System Architecture](#system-architecture)
 - [Technology Stack](#technology-stack)
 - [Installation](#installation)
+- [Project Structure](#project-structure)
 - [Usage](#usage)
 - [Models](#models)
 - [Datasets](#datasets)
@@ -15,12 +16,12 @@ BeanSense is a sophisticated machine learning system designed to classify coffee
 
 ## ✨ Features
 
-- **Multiple Classification Models**: Implements 7 different machine learning models for maximum flexibility and performance
+- **Multiple Classification Models**: Implements 7 different machine learning models for flexibility and performance
 - **Deep Feature Extraction**: Uses pre-trained CNN architectures (MobileNet, ResNet) to extract meaningful features from raw sensor data
 - **Client-Server Architecture**: Provides a distributed system for remote prediction and training
-- **Autoencoder Dimensionality Reduction**: Employs autoencoders for effective feature compression
+- **Autoencoder Dimensionality Reduction**: Employs autoencoders for feature compression
 - **Feature Selection**: Incorporates ICCS (Improved Cuckoo Search) for optimal feature selection
-- **Cross-Validation**: Implements stratified k-fold cross-validation for robust model evaluation
+- **Cross-Validation**: Implements stratified k-fold cross-validation for model evaluation
 - **Hyperparameter Tuning**: Uses GridSearchCV for SVM model optimization
 - **Real-time Classification**: Supports immediate prediction of coffee samples
 - **Memory & Performance Tracking**: Measures execution time and memory usage for each operation
@@ -61,21 +62,8 @@ BeanSense employs a client-server architecture:
    ```
 
 2. **Install dependencies**
-
    ```bash
    pip install -r requirements.txt
-   ```
-
-3. **Prepare directory structure**
-
-   ```bash
-   mkdir -p datasets model cache
-   ```
-
-4. **Download pre-trained models (optional)**
-   ```bash
-   # If you have pre-trained models
-   # Copy them to the 'model' directory
    ```
 
 ## 📁 Project Structure
