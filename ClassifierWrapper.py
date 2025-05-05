@@ -179,16 +179,28 @@ class ClassifierWrapper:
             features = np.array(values).reshape(1, -1)
 
             X_scaled = self.current_model.scaler.transform(features)
-            X_feat = self.current_model.extract_features(X_scaled)[0]
 
-            if hasattr(self.current_model, 'selected_indices'):
-                if self.current_model.selected_indices is not None:
-                    X_feat = X_feat[:, self.current_model.selected_indices]
+            if hasattr(self.current_model, 'extract_features'):
+                if self.model_type == 'autoencoder_lightgbm':
+                    X_feat = self.current_model.extract_features(X_scaled)
+                else:
+                    X_feat, _ = self.current_model.extract_features(X_scaled)
 
-            prediction_idx = self.current_model.classifier.predict(X_feat)[0]
+                if hasattr(self.current_model, 'selected_indices'):
+                    if self.current_model.selected_indices is not None:
+                        X_feat = X_feat[:, self.current_model.selected_indices]
+            else:
+                X_feat = X_scaled
+
+            if self.model_type == 'rbf_svm_gs':
+                prediction_idx = self.current_model.model.predict(X_feat)[0]
+                probabilities = self.current_model.model.predict_proba(X_feat)[0]
+            else:
+                prediction_idx = self.current_model.classifier.predict(X_feat)[0]
+                probabilities = self.current_model.classifier.predict_proba(X_feat)[0]
+
             prediction_label = self.current_model.label_encoder.inverse_transform([prediction_idx])[0]
 
-            probabilities = self.current_model.classifier.predict_proba(X_feat)[0]
             class_probs = {self.current_model.label_encoder.inverse_transform([i])[0]: prob
                            for i, prob in enumerate(probabilities)}
 
