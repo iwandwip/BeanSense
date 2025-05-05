@@ -71,7 +71,7 @@ class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
-class SensorClassifierServer:
+class CoffeeClassifierServer:
     def __init__(self, host="localhost", port=5000):
         self.host = host
         self.port = port
@@ -239,7 +239,7 @@ class SensorClassifierServer:
 
 
 def main():
-    server = SensorClassifierServer()
+    server = CoffeeClassifierServer()
     try:
         server.run_interactive()
     except KeyboardInterrupt:

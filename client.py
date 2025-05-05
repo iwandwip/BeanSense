@@ -6,7 +6,7 @@ import traceback
 from ClassifierWrapper import ClassifierWrapper
 
 
-class SensorClassifierClient:
+class CoffeeClassifierClient:
     def __init__(self, server_url="http://localhost:5000"):
         self.server_url = server_url
         self.dataset_names = ["dataset4", "dataset6", "dataset8"]
@@ -177,7 +177,7 @@ class SensorClassifierClient:
 
 if __name__ == "__main__":
     try:
-        client = SensorClassifierClient()
+        client = CoffeeClassifierClient()
         client.run()
     except KeyboardInterrupt:
         print("Shutting down client...")
