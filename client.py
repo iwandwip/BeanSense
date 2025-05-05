@@ -39,29 +39,19 @@ class CoffeeClassifierClient:
     def send_result(self, result, is_final=True):
         try:
             if isinstance(result, dict):
-                # Check if it's an error message
                 if "error" in result:
-                    # Use JSON for error messages
                     result_str = json.dumps(result)
                 else:
-                    # Format any non-error dictionary to comma-separated key:value
                     formatted_result = ""
                     for key, value in result.items():
-                        # Handle special case for probabilities dictionary
                         if key == "probabilities" and isinstance(value, dict):
-                            # Skip probabilities or handle specially if needed
                             continue
-
-                        # Handle numeric values
                         if isinstance(value, (int, float)) or (hasattr(value, "dtype") and "float" in str(value.dtype)):
                             formatted_value = f"{float(value):.2f}"
                         else:
-                            # Handle string values - remove "seconds" if present
                             formatted_value = str(value)
                             if "seconds" in formatted_value:
-                                formatted_value = formatted_value.split()[0]  # Get just the number part
-
-                        # Add to formatted string
+                                formatted_value = formatted_value.split()[0]
                         if formatted_result:
                             formatted_result += ","
                         formatted_result += f"{key}:{formatted_value}"
@@ -70,9 +60,7 @@ class CoffeeClassifierClient:
             else:
                 result_str = str(result)
 
-            # Print what we're sending
             print(f"Sending result: {result_str}")
-
             response = requests.post(f"{self.server_url}/post-result", data=result_str, timeout=10)
 
             if is_final:
