@@ -235,4 +235,7 @@ Each model outputs these metrics during training, allowing for direct comparison
 
 ---
 
-Created by [Your Name] - [iwan.dwp@gmail.com]
+Created by:
+
+- **Iwan Dwi**: [iwan.dwp@gmail.com]
+- **Zainul**: [zainul@gmail.com]
