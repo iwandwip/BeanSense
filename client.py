@@ -39,16 +39,39 @@ class CoffeeClassifierClient:
     def send_result(self, result, is_final=True):
         try:
             if isinstance(result, dict):
-                serializable_result = {}
-                for key, value in result.items():
-                    if key == "probabilities" and isinstance(value, dict):
-                        serializable_result[key] = {str(k): float(v) for k, v in value.items()}
-                    else:
-                        serializable_result[key] = str(value) if not isinstance(value, (int, float, str, bool)) else value
+                # Check if it's an error message
+                if "error" in result:
+                    # Use JSON for error messages
+                    result_str = json.dumps(result)
+                else:
+                    # Format any non-error dictionary to comma-separated key:value
+                    formatted_result = ""
+                    for key, value in result.items():
+                        # Handle special case for probabilities dictionary
+                        if key == "probabilities" and isinstance(value, dict):
+                            # Skip probabilities or handle specially if needed
+                            continue
 
-                result_str = json.dumps(serializable_result)
+                        # Handle numeric values
+                        if isinstance(value, (int, float)) or (hasattr(value, "dtype") and "float" in str(value.dtype)):
+                            formatted_value = f"{float(value):.2f}"
+                        else:
+                            # Handle string values - remove "seconds" if present
+                            formatted_value = str(value)
+                            if "seconds" in formatted_value:
+                                formatted_value = formatted_value.split()[0]  # Get just the number part
+
+                        # Add to formatted string
+                        if formatted_result:
+                            formatted_result += ","
+                        formatted_result += f"{key}:{formatted_value}"
+
+                    result_str = formatted_result
             else:
                 result_str = str(result)
+
+            # Print what we're sending
+            print(f"Sending result: {result_str}")
 
             response = requests.post(f"{self.server_url}/post-result", data=result_str, timeout=10)
 
@@ -176,7 +199,7 @@ class CoffeeClassifierClient:
 
 if __name__ == "__main__":
     try:
-        client = CoffeeClassifierClient()
+        client = CoffeeClassifierClient(server_url="http://192.168.4.1")
         client.run()
     except KeyboardInterrupt:
         print("Shutting down client...")

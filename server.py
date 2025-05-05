@@ -54,8 +54,7 @@ class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.server_instance.current_status = "idle"
             else:
                 self.server_instance.result_queue.put(post_data)
-                print(f"Received result:")
-                print(json.dumps(json.loads(post_data), indent=4, sort_keys=True))
+                print(f"Received result: {post_data}")
 
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-Type', 'text/plain')
