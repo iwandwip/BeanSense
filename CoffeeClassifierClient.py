@@ -1,9 +1,13 @@
 import os
+import sys
 import requests
 import time
 import json
 import traceback
 from ClassifierWrapper import ClassifierWrapper
+
+sys.path.append("/home/pi/.local/lib/python3.9/site-packages")
+sys.path.append("/home/pi/.local/lib/python3.9/site-packages")
 
 
 class CoffeeClassifierClient:
