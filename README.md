@@ -1,229 +1,237 @@
-# BeanSense: Coffee Classification System
+# BeanSense
 
-BeanSense is a machine learning system designed to classify coffee samples based on sensor readings. It combines deep learning architectures for feature extraction with various classifiers to achieve accurate coffee bean identification and classification.
+BeanSense classifies coffee samples from readings produced by MQ gas sensors. The repository contains the Python training and prediction code, an HTTP command bridge, datasets, trained models, and firmware for an ESP32 device with a TFT display.
 
-## 📋 Table of Contents
+The project is still an experimental system. The Python code supports local operation and a distributed setup. The ESP32 firmware provides the device-side interface for collecting samples and sending training or prediction commands.
 
-- [Features](#features)
-- [System Architecture](#system-architecture)
-- [Technology Stack](#technology-stack)
-- [Installation](#installation)
-- [Project Structure](#project-structure)
-- [Usage](#usage)
-- [Models](#models)
-- [Datasets](#datasets)
-- [Performance Metrics](#performance-metrics)
+## What the project can do
 
-## ✨ Features
+- Train seven classification pipelines on datasets with 4, 6, or 8 sensors.
+- Predict a coffee label from a new sensor reading.
+- Manage dataset rows from the local CLI or the ESP32 interface.
+- Extract features with ResNet18 or MobileNetV2 before classification.
+- Use an autoencoder or ICCS feature selection as alternative preprocessing steps.
+- Run training through an HTTP command queue between a server and a client.
+- Save trained models as pickle files and store training metrics as CSV files.
 
-- **Multiple Classification Models**: Implements 7 different machine learning models for flexibility and performance
-- **Deep Feature Extraction**: Uses pre-trained CNN architectures (MobileNet, ResNet) to extract meaningful features from raw sensor data
-- **Client-Server Architecture**: Provides a distributed system for remote prediction and training
-- **Autoencoder Dimensionality Reduction**: Employs autoencoders for feature compression
-- **Feature Selection**: Incorporates ICCS (Improved Cuckoo Search) for optimal feature selection
-- **Cross-Validation**: Implements stratified k-fold cross-validation for model evaluation
-- **Hyperparameter Tuning**: Uses GridSearchCV for SVM model optimization
-- **Real-time Classification**: Supports immediate prediction of coffee samples
-- **Memory & Performance Tracking**: Measures execution time and memory usage for each operation
+## System overview
 
-## 🏗️ System Architecture
+The repository contains three ways to use BeanSense:
 
-BeanSense employs a client-server architecture:
+### Local Python CLI
 
-```
-┌─────────────────┐      ┌─────────────────┐      ┌───────────────────┐
-│                 │      │                 │      │                   │
-│ User Interface  │<────>│ Server          │<────>│ Client            │
-│ (CLI)           │      │ (HTTP)          │      │ (ML Models)       │
-│                 │      │                 │      │                   │
-└─────────────────┘      └─────────────────┘      └───────────────────┘
-```
+`CoffeeClassifierMain.py` runs training, prediction, and dataset management in one process. It reads datasets from `datasets/` and writes models to `model/`.
 
-- **Server**: Handles requests, stores datasets, and delivers commands to the client
-- **Client**: Executes the machine learning models, performs training and prediction
-- **Wrapper**: Provides a unified interface to all classification models
+### Python server and client
 
-## 🔧 Technology Stack
+`CoffeeClassifierServer.py` exposes a small HTTP command queue. `CoffeeClassifierClient.py` polls that queue, downloads a dataset, runs the selected model, and posts the result back.
 
-- **Python 3.x**: Primary programming language
-- **PyTorch**: Deep learning framework for feature extraction
-- **scikit-learn**: Machine learning tools for model evaluation and preprocessing
-- **LightGBM, CatBoost**: Gradient boosting frameworks
-- **NumPy, Pandas**: Data manipulation and analysis
-- **HTTP Server**: Simple HTTP interface for client-server communication
+### ESP32 device
 
-## 📥 Installation
+The files in `utils/dendaFirmware/` implement the device interface. The firmware reads MQ sensors, stores CSV files in SPIFFS, serves the dataset and command endpoints, and displays results on the TFT screen.
 
-1. **Clone the repository**
+The Python server and ESP32 firmware implement similar endpoints, but they are separate implementations. Choose one server for a deployment instead of running both for the same client.
 
-   ```bash
-   git clone https://github.com/yourusername/BeanSense.git
-   cd BeanSense
-   ```
+## Requirements
 
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+- Python 3.10 or newer is recommended.
+- Python dependencies listed in [`utils/requirements.txt`](utils/requirements.txt).
+- A working PyTorch and torchvision installation.
+- Internet access on first use if torchvision must download ResNet18 or MobileNetV2 weights.
+- An ESP32 toolchain and the libraries listed in `utils/dendaFirmware/library.h` when building the firmware.
 
-## 📁 Project Structure
+The root `requirements.txt` is a legacy dependency export. Use `utils/requirements.txt` for a normal Python setup.
 
-```
-BeanSense/
-├── .backup/               # Backup files directory
-├── cache/                 # Cache directory for temporary files
-├── catboost_info/         # Information generated by CatBoost models
-├── datasets/              # Dataset files
-│   ├── origin/            # Original dataset files
-│   ├── dataset4.csv       # 4-sensor dataset
-│   ├── dataset6.csv       # 6-sensor dataset
-│   └── dataset8.csv       # 8-sensor dataset
-├── model/                 # Trained model files
-│   ├── default_model/     # Default model files
-│   ├── adaboost_resnet_model_4.pkl     # AdaBoost + ResNet model (4 sensors)
-│   ├── adaboost_resnet_model_6.pkl     # AdaBoost + ResNet model (6 sensors)
-│   ├── adaboost_resnet_model_8.pkl     # AdaBoost + ResNet model (8 sensors)
-│   ├── autoencoder_lightgbm_model_4.pkl  # Autoencoder + LightGBM model (4 sensors)
-│   ├── autoencoder_lightgbm_model_6.pkl  # Autoencoder + LightGBM model (6 sensors)
-│   ├── autoencoder_lightgbm_model_8.pkl  # Autoencoder + LightGBM model (8 sensors)
-│   ├── catboost_resnet_model_4.pkl     # CatBoost + ResNet model (4 sensors)
-│   ├── catboost_resnet_model_6.pkl     # CatBoost + ResNet model (6 sensors)
-│   ├── catboost_resnet_model_8.pkl     # CatBoost + ResNet model (8 sensors)
-│   ├── lightgbm_resnet_model_4.pkl     # LightGBM + ResNet model (4 sensors)
-│   ├── lightgbm_resnet_model_6.pkl     # LightGBM + ResNet model (6 sensors)
-│   ├── lightgbm_resnet_model_8.pkl     # LightGBM + ResNet model (8 sensors)
-│   ├── mobilenet_iccs_lightgbm_model_4.pkl  # MobileNet + ICCS + LightGBM model (4 sensors)
-│   ├── mobilenet_iccs_lightgbm_model_6.pkl  # MobileNet + ICCS + LightGBM model (6 sensors)
-│   ├── mobilenet_iccs_lightgbm_model_8.pkl  # MobileNet + ICCS + LightGBM model (8 sensors)
-│   ├── mobilenet_lightgbm_model_4.pkl  # MobileNet + LightGBM model (4 sensors)
-│   ├── mobilenet_lightgbm_model_6.pkl  # MobileNet + LightGBM model (6 sensors)
-│   ├── mobilenet_lightgbm_model_8.pkl  # MobileNet + LightGBM model (8 sensors)
-│   ├── rbf_svm_gs_model_4.pkl          # RBF SVM + GridSearch model (4 sensors)
-│   ├── rbf_svm_gs_model_6.pkl          # RBF SVM + GridSearch model (6 sensors)
-│   └── rbf_svm_gs_model_8.pkl          # RBF SVM + GridSearch model (8 sensors)
-├── utils/                 # Utility scripts and helpers
-├── venv/                  # Python virtual environment
-├── __pycache__/           # Python cache files
-├── .gitignore             # Git ignore file
-├── AdaBoostClassifier.py  # AdaBoost classifier implementation
-├── AutoencoderLightGBM.py # Autoencoder + LightGBM implementation
-├── CatBoostClassifier.py  # CatBoost classifier implementation
-├── ClassifierWrapper.py   # Unified interface for all classifiers
-├── CoffeeClassifierClient.py # Client implementation
-├── CoffeeClassifierServer.py # Server implementation
-├── LightGBMMobileNet.py   # LightGBM + MobileNet implementation
-├── LightGBMResNet.py      # LightGBM + ResNet implementation
-├── MobileNetICCSLightGBM.py # MobileNet + ICCS + LightGBM implementation
-├── RBFSVMGridSearch.py    # RBF SVM + GridSearch implementation
-├── README.md              # Project documentation
-└── requirements.txt       # Python dependencies
+## Installation
+
+```bash
+git clone <repository-url>
+cd BeanSense
+
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip
+python3 -m pip install -r utils/requirements.txt
 ```
 
-## 🚀 Usage
+On Windows, activate the environment with:
 
-### Server Setup
+```powershell
+.venv\Scripts\Activate.ps1
+```
 
-1. **Start the server**
+## Quick start: local CLI
 
-   ```bash
-   python CoffeeClassifierServer.py
-   ```
+Run:
 
-2. **Select operations from the interactive menu:**
-   - Train model
-   - Make prediction
-   - Check status
-   - View latest result
+```bash
+python3 CoffeeClassifierMain.py
+```
 
-### Client Operation
+The menu provides four operations:
 
-1. **Start the client (in a separate terminal)**
+1. Train all models on all datasets.
+2. Train one model on one dataset.
+3. Predict from sensor values.
+4. Add or remove dataset rows.
 
-   ```bash
-   python CoffeeClassifierClient.py
-   ```
+Training writes a model to `model/`. Training-all mode writes a timestamped report to `results/`.
 
-2. **Training a model**
+## Python server and client
 
-   - Select "Train model" on the server
-   - Choose dataset (4, 6, or 8 sensors)
-   - Select model type
-   - Monitor progress on the client
+Start the Python server in one terminal:
 
-3. **Making predictions**
-   - Select "Make prediction" on the server
-   - Choose the dataset and model type
-   - Enter sensor values (comma-separated)
-   - View results
+```bash
+python3 CoffeeClassifierServer.py
+```
 
-### Direct Model Usage
+The default server address is `http://localhost:5000`. The server stores commands in memory and includes small sample datasets for development.
 
-You can also use the models directly in your own code:
+Run a client from another Python process with the same server URL:
+
+```python
+from CoffeeClassifierClient import CoffeeClassifierClient
+
+client = CoffeeClassifierClient(server_url="http://localhost:5000")
+client.run()
+```
+
+For the ESP32 setup, use the device address instead:
+
+```python
+from CoffeeClassifierClient import CoffeeClassifierClient
+
+client = CoffeeClassifierClient(server_url="http://192.168.4.1")
+client.run()
+```
+
+The client accepts two command types:
+
+```text
+train,<dataset-index>,<model-index>
+predict,<dataset-index>,<model-index>,<sensor-value-1>,<sensor-value-2>,...
+```
+
+Dataset indexes are `0` for dataset4, `1` for dataset6, and `2` for dataset8. Model indexes follow the order in `CoffeeClassifierClient.model_types`.
+
+## Direct model usage
+
+This example trains the MobileNet plus LightGBM pipeline on the four-sensor dataset:
 
 ```python
 from LightGBMMobileNet import MobileNetLightGBMModel
 
-# Initialize model
 model = MobileNetLightGBMModel()
-
-# Load data
 X, y = model.load_data("datasets/dataset4.csv")
+metrics = model.train(X, y, use_kfold=True)
 
-# Train model
-metrics = model.train(X, y)
+prediction = model.predict_single([123, 456, 789, 101])
+print(prediction)
 
-# Make prediction
-result = model.predict_single([123, 456, 789, 101])
-print(f"Prediction: {result}")
-
-# Save model
-model.save_model("model/my_model.pkl")
+model.save_model("model/example_mobilenet_lightgbm.pkl")
 ```
 
-## 🧠 Models
+For prediction from text input, use the model's `predict_custom_input` method after loading a trained model.
 
-BeanSense includes seven distinct classification models:
+## Datasets
 
-1. **LightGBM + MobileNet**: Combines MobileNetV2 feature extraction with LightGBM classification
-2. **LightGBM + ResNet**: Uses ResNet18 for feature extraction with LightGBM classification
-3. **MobileNet + ICCS + LightGBM**: Adds feature selection using Improved Cuckoo Search algorithm
-4. **AdaBoost + ResNet**: Combines ResNet18 features with AdaBoost ensemble learning
-5. **Autoencoder + LightGBM**: Uses an autoencoder for dimensionality reduction before classification
-6. **CatBoost + ResNet**: Utilizes CatBoost classifier with ResNet features
-7. **RBF SVM + GridSearch**: Implements Support Vector Machines with grid search for hyperparameter tuning
+Each CSV uses `NAMA` as its label column. Sensor values follow this order:
 
-Each model employs different strategies for feature extraction, selection, and classification to provide comprehensive analysis options.
+| File | Sensors |
+|---|---|
+| `datasets/dataset4.csv` | `MQ135`, `MQ2`, `MQ3`, `MQ6` |
+| `datasets/dataset6.csv` | `MQ135`, `MQ2`, `MQ3`, `MQ6`, `MQ138`, `MQ7` |
+| `datasets/dataset8.csv` | `MQ135`, `MQ2`, `MQ3`, `MQ6`, `MQ138`, `MQ7`, `MQ136`, `MQ5` |
 
-## 📊 Datasets
+Labels use this format:
 
-The system works with three types of datasets based on the number of sensors:
+```text
+<variety>-<roast>
+```
 
-1. **dataset4.csv**: 4 sensors (MQ135, MQ2, MQ3, MQ6)
-2. **dataset6.csv**: 6 sensors (MQ135, MQ2, MQ3, MQ6, MQ138, MQ7)
-3. **dataset8.csv**: 8 sensors (MQ135, MQ2, MQ3, MQ6, MQ138, MQ7, MQ136, MQ5)
+Examples include:
 
-The datasets classify coffee samples with labels like:
+```text
+aKaw-D   # Arabica Kawisari, dark roast
+aSem-M   # Arabica Semeru, medium roast
+rGed-L   # Robusta Gedung, light roast
+rTir-D   # Robusta Tirtoyudo, dark roast
+```
 
-- aKaw-D, aKaw-M, aKaw-L (Arabica Kawisari - Dark/Medium/Light roast)
-- aSem-D, aSem-M, aSem-L (Arabica Semeru - Dark/Medium/Light roast)
-- rGed-D, rGed-M, rGed-L (Robusta Gedung - Dark/Medium/Light roast)
-- rTir-D, rTir-M, rTir-L (Robusta Tirtoyudo - Dark/Medium/Light roast)
+`datasets/origin/` contains the original dataset copies. The files directly under `datasets/` are the files used by the Python code and may be reordered or edited by the dataset management functions.
 
-## 📈 Performance Metrics
+When adding prediction data, provide exactly 4, 6, or 8 numeric values for the selected dataset. Keep the sensor order unchanged.
 
-The system evaluates models using multiple metrics:
+## Available models
 
-- **Accuracy**: Overall prediction accuracy
-- **F1-Score**: Harmonic mean of precision and recall
-- **AUC**: Area Under the ROC Curve
-- **Memory Usage**: Peak memory consumption during operation
-- **Execution Time**: Time taken for training and prediction
+| Key | Pipeline |
+|---|---|
+| `adaboost_resnet` | ResNet18 feature extraction + AdaBoost |
+| `catboost_resnet` | ResNet18 feature extraction + CatBoost |
+| `lightgbm_resnet` | ResNet18 feature extraction + LightGBM |
+| `lightgbm_mobilenet` | MobileNetV2 feature extraction + LightGBM |
+| `mobilenet_iccs_lightgbm` | MobileNetV2 + ICCS feature selection + LightGBM |
+| `autoencoder_lightgbm` | Autoencoder compression + LightGBM |
+| `rbf_svm_gs` | RBF SVM with grid search |
 
-Each model outputs these metrics during training, allowing for direct comparison.
+The default wrapper configuration uses five-fold stratified cross-validation. Hyperparameters are defined in `ClassifierWrapper.py`.
 
----
+## Model and experiment files
 
-Created by:
+| Path | Purpose |
+|---|---|
+| `model/` | Trained pickle models used by the wrapper |
+| `model/default_model/` | Additional copies of trained models |
+| `cache/` | Cached MobileNet features for ICCS training |
+| `results/` | Timestamped training reports |
+| `catboost_info/` | CatBoost training logs |
 
-- **Iwan Dwi**: [iwan.dwp@gmail.com]
-- **Ahmad Zainul**: [ahmadzainularifin6@gmail.com]
+These files depend on the Python package versions used during training. A pickle model should only be loaded from a trusted source.
+
+## Repository layout
+
+```text
+BeanSense/
+├── AdaBoostClassifier.py
+├── AutoencoderLightGBM.py
+├── CatBoostClassifier.py
+├── ClassifierWrapper.py
+├── CoffeeClassifierClient.py
+├── CoffeeClassifierMain.py
+├── CoffeeClassifierServer.py
+├── LightGBMMobileNet.py
+├── LightGBMResNet.py
+├── MobileNetICCSLightGBM.py
+├── RBFSVMGridSearch.py
+├── datasets/
+│   ├── origin/
+│   ├── dataset4.csv
+│   ├── dataset6.csv
+│   └── dataset8.csv
+├── model/
+├── cache/
+├── results/
+└── utils/
+    ├── dendaFirmware/
+    ├── main.py
+    ├── main_controller.py
+    └── requirements.txt
+```
+
+The repository also contains older backup files under `.backup/`. They are not part of the current Python entry points.
+
+## Known limitations
+
+- The project has no automated test suite yet.
+- Training and prediction depend on relative paths from the repository root.
+- The Python and ESP32 server implementations do not share a formal protocol schema.
+- The Python client default and its executable entry point target different server addresses.
+- Training metrics are experiment outputs, not a published benchmark.
+- Cross-validation currently fits preprocessing before the folds, so reported metrics need careful interpretation.
+- The model files do not include a complete environment lockfile or dataset version record.
+- The project does not currently declare a software license.
+
+## Authors
+
+- Iwan Dwi — iwan.dwp@gmail.com
+- Ahmad Zainul — ahmadzainularifin6@gmail.com
